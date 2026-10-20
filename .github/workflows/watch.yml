@@ -1,0 +1,34 @@
+name: Sjekk nye plagg
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # hvert 10. minutt (GitHub kan være noen minutter forsinket)
+  workflow_dispatch:          # lar deg starte manuelt fra Actions-fanen
+
+permissions:
+  contents: write             # trengs for å lagre seen_products.json
+
+concurrency:
+  group: ludwig-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sjekk nettbutikken
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python3 check_new_products.py
+
+      - name: Lagre oversikt over produkter vi har sett
+        run: |
+          if [ -n "$(git status --porcelain seen_products.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen_products.json
+            git commit -m "Oppdater produktliste"
+            git push
+          fi
